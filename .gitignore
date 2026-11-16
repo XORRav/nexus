@@ -1,0 +1,43 @@
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# VPN configs (may contain creds)
+*.ovpn
+
+# Secrets / credentials
+*.key
+*.pem
+*.crt
+*.pfx
+*.p12
+.env
+
+# Compiled / downloaded binaries (belong on target, not in repo)
+*.exe
+*.elf
+*.bin
+
+# Archives
+*.zip
+*.tar.gz
+*.7z
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Rust build output
+target/
+
+# Logs
+*.log
