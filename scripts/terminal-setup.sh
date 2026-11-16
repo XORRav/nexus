@@ -83,4 +83,22 @@ else
     warn "QTerminal config not found — set font manually in Preferences"
 fi
 
+# ---- tmux config ----
+if [ ! -f "$HOME/.tmux.conf" ]; then
+    if [ -f "$CONFIGS_DIR/tmux.conf" ]; then
+        info "Installing tmux config..."
+        cp "$CONFIGS_DIR/tmux.conf" "$HOME/.tmux.conf"
+    fi
+else
+    info "tmux config: already exists"
+fi
+
+# ---- xclip for tmux clipboard support ----
+if ! command -v xclip &>/dev/null; then
+    info "Installing xclip (tmux clipboard support)..."
+    sudo apt install -y -qq xclip
+else
+    info "xclip: already installed"
+fi
+
 info "Terminal setup done."
