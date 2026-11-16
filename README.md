@@ -113,4 +113,4 @@ Kali Linux 2025.x on VMware Workstation (pre-built image with XFCE desktop).
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).
