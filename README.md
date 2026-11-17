@@ -65,7 +65,7 @@ chmod +x install.sh scripts/*.sh
 - **zsh** set as default shell
 - **JetBrains Mono Nerd Font** installed
 - **fzf** keybindings enabled
-- **tmux** config — mouse support, vi copy mode, system clipboard (`xclip`), sane split keys (`|` / `-`)
+- **tmux** config — mouse support, vi copy mode, system clipboard (`xsel`), sane split keys (`|` / `-`)
 - Aliases: `listen` (rlwrap nc listener), `serve` (python3 http server), `bat` (batcat)
 - QTerminal configured (font, colors, no transparency)
 

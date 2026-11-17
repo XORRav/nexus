@@ -93,12 +93,12 @@ else
     info "tmux config: already exists"
 fi
 
-# ---- xclip for tmux clipboard support ----
-if ! command -v xclip &>/dev/null; then
-    info "Installing xclip (tmux clipboard support)..."
-    sudo apt install -y -qq xclip
+# ---- xsel for tmux clipboard support ----
+if ! command -v xsel &>/dev/null; then
+    info "Installing xsel (tmux clipboard support)..."
+    sudo apt install -y -qq xsel
 else
-    info "xclip: already installed"
+    info "xsel: already installed"
 fi
 
 info "Terminal setup done."
