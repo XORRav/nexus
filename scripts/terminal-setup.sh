@@ -1,8 +1,7 @@
 #!/bin/bash
 # Terminal customization: zsh, Nerd Font, fzf, aliases, QTerminal config
 
-info() { echo -e "\033[0;32m[+]\033[0m $1"; }
-warn() { echo -e "\033[1;33m[!]\033[0m $1"; }
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIGS_DIR="$SCRIPT_DIR/../configs"
@@ -10,28 +9,49 @@ CONFIGS_DIR="$SCRIPT_DIR/../configs"
 # ---- Set zsh as default shell ----
 if [ "$(basename "$SHELL")" = "zsh" ]; then
     info "zsh: already default shell"
-else
+    track_skipped
+elif [ -x /usr/bin/zsh ]; then
     info "Setting zsh as default shell..."
     chsh -s /usr/bin/zsh
     warn "Log out and back in for zsh to take effect"
+    track_installed
+else
+    warn "zsh not found at /usr/bin/zsh — skipping shell change"
+    track_failed
 fi
 
 # ---- Install JetBrains Mono Nerd Font ----
 if fc-list | grep -qi "JetBrainsMono Nerd"; then
     info "JetBrainsMono Nerd Font: already installed"
+    track_skipped
 else
     info "Installing JetBrainsMono Nerd Font..."
-    mkdir -p ~/.local/share/fonts
-    cd ~/.local/share/fonts
-    wget -q https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
-    unzip -qo JetBrainsMono.zip -d JetBrainsMono
-    rm -f JetBrainsMono.zip
-    fc-cache -f
-    info "Font installed. Set it in QTerminal: File > Preferences > Appearance"
+    FONT_DIR="$HOME/.local/share/fonts"
+    mkdir -p "$FONT_DIR"
+    if wget -q https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip -O /tmp/JetBrainsMono.zip; then
+        unzip -qo /tmp/JetBrainsMono.zip -d "$FONT_DIR/JetBrainsMono"
+        rm -f /tmp/JetBrainsMono.zip
+        fc-cache -f
+        info "Font installed"
+        track_installed
+    else
+        warn "Failed to download JetBrainsMono Nerd Font — check internet connection"
+        track_failed
+    fi
+fi
+
+# ---- Seed .zshrc from defaults if missing ----
+ZSHRC="$HOME/.zshrc"
+if [ ! -f "$ZSHRC" ]; then
+    if [ -f /etc/skel/.zshrc ]; then
+        info "Seeding .zshrc from /etc/skel defaults..."
+        cp /etc/skel/.zshrc "$ZSHRC"
+    else
+        touch "$ZSHRC"
+    fi
 fi
 
 # ---- Add zshrc additions (idempotent) ----
-ZSHRC="$HOME/.zshrc"
 
 # fzf keybindings
 FZF_LINE='[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh'
@@ -71,7 +91,6 @@ if [ -f "$QTERMINAL_INI" ]; then
     info "Updating QTerminal config..."
     sed -i 's/^fontFamily=.*/fontFamily=JetBrainsMono Nerd Font/' "$QTERMINAL_INI"
     sed -i 's/^fontSize=.*/fontSize=11/' "$QTERMINAL_INI"
-    # Ensure no transparency
     if grep -q "^ApplicationTransparency=" "$QTERMINAL_INI"; then
         sed -i 's/^ApplicationTransparency=.*/ApplicationTransparency=0/' "$QTERMINAL_INI"
     fi
@@ -88,17 +107,25 @@ if [ ! -f "$HOME/.tmux.conf" ]; then
     if [ -f "$CONFIGS_DIR/tmux.conf" ]; then
         info "Installing tmux config..."
         cp "$CONFIGS_DIR/tmux.conf" "$HOME/.tmux.conf"
+        track_installed
     fi
 else
     info "tmux config: already exists"
+    track_skipped
 fi
 
 # ---- xsel for tmux clipboard support ----
 if ! command -v xsel &>/dev/null; then
     info "Installing xsel (tmux clipboard support)..."
-    sudo apt install -y -qq xsel
+    if sudo apt install -y -qq xsel; then
+        track_installed
+    else
+        warn "Failed to install xsel"
+        track_failed
+    fi
 else
     info "xsel: already installed"
+    track_skipped
 fi
 
 info "Terminal setup done."

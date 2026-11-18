@@ -1,7 +1,7 @@
 #!/bin/bash
 # pipx Python tool installs (isolated environments, no --break-system-packages)
 
-info() { echo -e "\033[0;32m[+]\033[0m $1"; }
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 PIPX_PACKAGES=(
     certipy-ad
@@ -24,9 +24,15 @@ fi
 for pkg in "${PIPX_PACKAGES[@]}"; do
     if pipx list 2>/dev/null | grep -qi "$pkg"; then
         info "$pkg: already installed (pipx)"
+        track_skipped
     else
         info "Installing $pkg via pipx..."
-        pipx install "$pkg"
+        if pipx install "$pkg"; then
+            track_installed
+        else
+            warn "Failed to install $pkg"
+            track_failed
+        fi
     fi
 done
 

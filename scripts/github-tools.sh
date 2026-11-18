@@ -1,8 +1,7 @@
 #!/bin/bash
 # GitHub clones, binary downloads, and release assets
 
-info() { echo -e "\033[0;32m[+]\033[0m $1"; }
-warn() { echo -e "\033[1;33m[!]\033[0m $1"; }
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 TOOLS_DIR="$HOME/htb/tools"
 
@@ -21,12 +20,20 @@ get_release_url() {
 # AD Tools — ~/htb/tools/ad/
 # ============================================================
 
-# BloodHound CE (Docker)
-if [ ! -d "$TOOLS_DIR/ad/BloodHound" ]; then
-    info "Cloning BloodHound CE..."
-    git clone https://github.com/SpecterOps/BloodHound.git "$TOOLS_DIR/ad/BloodHound"
+# BloodHound CE (Docker Compose file only)
+if [ ! -f "$TOOLS_DIR/ad/bloodhound-ce/docker-compose.yml" ]; then
+    info "Downloading BloodHound CE docker-compose.yml..."
+    mkdir -p "$TOOLS_DIR/ad/bloodhound-ce"
+    if curl -fsSL https://ghst.ly/getbhce -o "$TOOLS_DIR/ad/bloodhound-ce/docker-compose.yml"; then
+        info "BloodHound CE ready — start with: cd ~/htb/tools/ad/bloodhound-ce && docker compose up"
+        track_installed
+    else
+        warn "Failed to download BloodHound CE compose file"
+        track_failed
+    fi
 else
-    info "BloodHound CE: already cloned"
+    info "BloodHound CE: docker-compose.yml already present"
+    track_skipped
 fi
 
 # Kerbrute
@@ -36,11 +43,14 @@ if [ ! -f "$TOOLS_DIR/ad/kerbrute" ]; then
     if [ -n "$URL" ]; then
         wget -q "$URL" -O "$TOOLS_DIR/ad/kerbrute"
         chmod +x "$TOOLS_DIR/ad/kerbrute"
+        track_installed
     else
         warn "Could not find Kerbrute release URL"
+        track_failed
     fi
 else
     info "Kerbrute: already downloaded"
+    track_skipped
 fi
 
 # windapsearch
@@ -50,27 +60,42 @@ if [ ! -f "$TOOLS_DIR/ad/windapsearch" ]; then
     if [ -n "$URL" ]; then
         wget -q "$URL" -O "$TOOLS_DIR/ad/windapsearch"
         chmod +x "$TOOLS_DIR/ad/windapsearch"
+        track_installed
     else
         warn "Could not find windapsearch release URL"
+        track_failed
     fi
 else
     info "windapsearch: already downloaded"
+    track_skipped
 fi
 
 # PKINITtools
 if [ ! -d "$TOOLS_DIR/ad/PKINITtools" ]; then
     info "Cloning PKINITtools..."
-    git clone https://github.com/dirkjanm/PKINITtools.git "$TOOLS_DIR/ad/PKINITtools"
+    if git clone --quiet https://github.com/dirkjanm/PKINITtools.git "$TOOLS_DIR/ad/PKINITtools"; then
+        track_installed
+    else
+        warn "Failed to clone PKINITtools"
+        track_failed
+    fi
 else
     info "PKINITtools: already cloned"
+    track_skipped
 fi
 
 # krbrelayx
 if [ ! -d "$TOOLS_DIR/ad/krbrelayx" ]; then
     info "Cloning krbrelayx..."
-    git clone https://github.com/dirkjanm/krbrelayx.git "$TOOLS_DIR/ad/krbrelayx"
+    if git clone --quiet https://github.com/dirkjanm/krbrelayx.git "$TOOLS_DIR/ad/krbrelayx"; then
+        track_installed
+    else
+        warn "Failed to clone krbrelayx"
+        track_failed
+    fi
 else
     info "krbrelayx: already cloned"
+    track_skipped
 fi
 
 # SharpHound
@@ -79,11 +104,14 @@ if ! ls "$TOOLS_DIR/ad"/SharpHound*.zip &>/dev/null; then
     URL=$(get_release_url "SpecterOps/SharpHound" "windows")
     if [ -n "$URL" ]; then
         wget -q "$URL" -O "$TOOLS_DIR/ad/SharpHound.zip"
+        track_installed
     else
         warn "Could not find SharpHound release URL"
+        track_failed
     fi
 else
     info "SharpHound: already downloaded"
+    track_skipped
 fi
 
 # Ghostpack compiled binaries (Rubeus, Seatbelt, Certify)
@@ -91,9 +119,15 @@ GHOSTPACK_BASE="https://raw.githubusercontent.com/r3motecontrol/Ghostpack-Compil
 for binary in Rubeus.exe Seatbelt.exe Certify.exe; do
     if [ ! -f "$TOOLS_DIR/ad/$binary" ]; then
         info "Downloading $binary..."
-        wget -q "$GHOSTPACK_BASE/$binary" -O "$TOOLS_DIR/ad/$binary" || warn "Failed to download $binary"
+        if wget -q "$GHOSTPACK_BASE/$binary" -O "$TOOLS_DIR/ad/$binary"; then
+            track_installed
+        else
+            warn "Failed to download $binary"
+            track_failed
+        fi
     else
         info "$binary: already downloaded"
+        track_skipped
     fi
 done
 
@@ -103,11 +137,14 @@ if [ ! -f "$TOOLS_DIR/ad/Snaffler.exe" ]; then
     URL=$(get_release_url "SnaffCon/Snaffler" "Snaffler.exe")
     if [ -n "$URL" ]; then
         wget -q "$URL" -O "$TOOLS_DIR/ad/Snaffler.exe"
+        track_installed
     else
         warn "Could not find Snaffler release URL"
+        track_failed
     fi
 else
     info "Snaffler.exe: already downloaded"
+    track_skipped
 fi
 
 # Inveigh
@@ -116,11 +153,14 @@ if ! ls "$TOOLS_DIR/ad"/Inveigh*.zip &>/dev/null; then
     URL=$(get_release_url "Kevin-Robertson/Inveigh" "net4.6.2")
     if [ -n "$URL" ]; then
         wget -q "$URL" -O "$TOOLS_DIR/ad/Inveigh-net4.6.2.zip"
+        track_installed
     else
         warn "Could not find Inveigh release URL"
+        track_failed
     fi
 else
     info "Inveigh: already downloaded"
+    track_skipped
 fi
 
 # ============================================================
@@ -130,17 +170,29 @@ fi
 # noPac
 if [ ! -d "$TOOLS_DIR/exploit/noPac" ]; then
     info "Cloning noPac..."
-    git clone https://github.com/Ridter/noPac.git "$TOOLS_DIR/exploit/noPac"
+    if git clone --quiet https://github.com/Ridter/noPac.git "$TOOLS_DIR/exploit/noPac"; then
+        track_installed
+    else
+        warn "Failed to clone noPac"
+        track_failed
+    fi
 else
     info "noPac: already cloned"
+    track_skipped
 fi
 
 # PrintNightmare
 if [ ! -d "$TOOLS_DIR/exploit/PrintNightmare" ]; then
     info "Cloning PrintNightmare..."
-    git clone https://github.com/cube0x0/CVE-2021-1675.git "$TOOLS_DIR/exploit/PrintNightmare"
+    if git clone --quiet https://github.com/cube0x0/CVE-2021-1675.git "$TOOLS_DIR/exploit/PrintNightmare"; then
+        track_installed
+    else
+        warn "Failed to clone PrintNightmare"
+        track_failed
+    fi
 else
     info "PrintNightmare: already cloned"
+    track_skipped
 fi
 
 # ============================================================
@@ -154,11 +206,14 @@ if [ ! -f "$TOOLS_DIR/postex/pspy64" ]; then
     if [ -n "$URL" ]; then
         wget -q "$URL" -O "$TOOLS_DIR/postex/pspy64"
         chmod +x "$TOOLS_DIR/postex/pspy64"
+        track_installed
     else
         warn "Could not find pspy64 release URL"
+        track_failed
     fi
 else
     info "pspy64: already downloaded"
+    track_skipped
 fi
 
 # ============================================================
@@ -174,21 +229,25 @@ if [ ! -f "$TOOLS_DIR/ligolo/proxy" ]; then
     if [ -n "$PROXY_URL" ]; then
         wget -q "$PROXY_URL" -O /tmp/ligolo-proxy.tar.gz
         tar xzf /tmp/ligolo-proxy.tar.gz -C "$TOOLS_DIR/ligolo/"
-        # Rename to clean name if needed
         find "$TOOLS_DIR/ligolo/" -name "*proxy*" -type f ! -name "proxy" -exec mv {} "$TOOLS_DIR/ligolo/proxy" \; 2>/dev/null
         chmod +x "$TOOLS_DIR/ligolo/proxy"
         rm -f /tmp/ligolo-proxy.tar.gz
+        track_installed
     else
         warn "Could not find Ligolo proxy release URL"
+        track_failed
     fi
 
     if [ -n "$AGENT_URL" ]; then
         wget -q "$AGENT_URL" -O "$TOOLS_DIR/ligolo/agent.exe"
+        track_installed
     else
         warn "Could not find Ligolo agent release URL"
+        track_failed
     fi
 else
     info "Ligolo-ng: already downloaded"
+    track_skipped
 fi
 
 # ============================================================
@@ -198,17 +257,29 @@ fi
 # Username Anarchy
 if [ ! -d "$TOOLS_DIR/web/username-anarchy" ]; then
     info "Cloning Username Anarchy..."
-    git clone https://github.com/urbanadventurer/username-anarchy.git "$TOOLS_DIR/web/username-anarchy"
+    if git clone --quiet https://github.com/urbanadventurer/username-anarchy.git "$TOOLS_DIR/web/username-anarchy"; then
+        track_installed
+    else
+        warn "Failed to clone Username Anarchy"
+        track_failed
+    fi
 else
     info "Username Anarchy: already cloned"
+    track_skipped
 fi
 
 # cupp
 if [ ! -d "$TOOLS_DIR/web/cupp" ]; then
     info "Cloning cupp..."
-    git clone https://github.com/Mebus/cupp.git "$TOOLS_DIR/web/cupp"
+    if git clone --quiet https://github.com/Mebus/cupp.git "$TOOLS_DIR/web/cupp"; then
+        track_installed
+    else
+        warn "Failed to clone cupp"
+        track_failed
+    fi
 else
     info "cupp: already cloned"
+    track_skipped
 fi
 
 info "GitHub tools done."
