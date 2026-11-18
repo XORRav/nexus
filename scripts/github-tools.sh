@@ -139,9 +139,15 @@ fi
 # Post-Exploitation — ~/htb/tools/postex/
 # ============================================================
 
-# pspy64
+# pspy64 (direct URL — API grep fails because asset name has no extension)
 if [ ! -f "$TOOLS_DIR/postex/pspy64" ]; then
-    download_release "pspy64" "$TOOLS_DIR/postex/pspy64" "DominicBreuker/pspy" "pspy64$" true
+    if run_install "pspy64" wget -q \
+        https://github.com/DominicBreuker/pspy/releases/latest/download/pspy64 \
+        -O "$TOOLS_DIR/postex/pspy64"; then
+        chmod +x "$TOOLS_DIR/postex/pspy64"
+    else
+        rm -f "$TOOLS_DIR/postex/pspy64"
+    fi
 else
     skip_ok "pspy64"
 fi
@@ -151,30 +157,50 @@ fi
 # ============================================================
 
 if [ ! -f "$TOOLS_DIR/ligolo/proxy" ]; then
-    PROXY_URL=$(get_release_url "nicocha30/ligolo-ng" "linux_amd64.*\.tar\.gz")
-    AGENT_URL=$(get_release_url "nicocha30/ligolo-ng" "windows_amd64.*\.exe")
-
+    # Proxy (runs on Kali)
+    PROXY_URL=$(get_release_url "nicocha30/ligolo-ng" "proxy.*linux_amd64.*tar.gz")
     if [ -n "$PROXY_URL" ]; then
         if run_install "Ligolo-ng proxy" wget -q "$PROXY_URL" -O /tmp/ligolo-proxy.tar.gz; then
             tar xzf /tmp/ligolo-proxy.tar.gz -C "$TOOLS_DIR/ligolo/"
             find "$TOOLS_DIR/ligolo/" -name "*proxy*" -type f ! -name "proxy" \
                 -exec mv {} "$TOOLS_DIR/ligolo/proxy" \; 2>/dev/null
             chmod +x "$TOOLS_DIR/ligolo/proxy"
-            rm -f /tmp/ligolo-proxy.tar.gz
-        else
-            rm -f /tmp/ligolo-proxy.tar.gz
         fi
+        rm -f /tmp/ligolo-proxy.tar.gz
     else
-        echo -e "  ${RED}[✗]${NC} Ligolo-ng proxy: GitHub release not found"
+        echo -e "  ${RED}[✗]${NC} Ligolo-ng proxy: release not found"
+        _log "[✗] Ligolo-ng proxy: release URL not found"
         track_failed
     fi
 
-    if [ -n "$AGENT_URL" ]; then
-        if ! run_install "Ligolo-ng agent" wget -q "$AGENT_URL" -O "$TOOLS_DIR/ligolo/agent.exe"; then
-            rm -f "$TOOLS_DIR/ligolo/agent.exe"
+    # Agent — Windows (.zip, not .exe)
+    AGENT_WIN_URL=$(get_release_url "nicocha30/ligolo-ng" "agent.*windows_amd64.*zip")
+    if [ -n "$AGENT_WIN_URL" ]; then
+        if run_install "Ligolo-ng agent (Windows)" wget -q "$AGENT_WIN_URL" -O /tmp/ligolo-agent-win.zip; then
+            unzip -qo /tmp/ligolo-agent-win.zip -d "$TOOLS_DIR/ligolo/"
+            find "$TOOLS_DIR/ligolo/" -name "*agent*" -name "*.exe" -type f ! -name "agent.exe" \
+                -exec mv {} "$TOOLS_DIR/ligolo/agent.exe" \; 2>/dev/null
         fi
+        rm -f /tmp/ligolo-agent-win.zip
     else
-        echo -e "  ${RED}[✗]${NC} Ligolo-ng agent: GitHub release not found"
+        echo -e "  ${RED}[✗]${NC} Ligolo-ng agent (Windows): release not found"
+        _log "[✗] Ligolo-ng agent: release URL not found"
+        track_failed
+    fi
+
+    # Agent — Linux (for pivoting from Linux hosts)
+    AGENT_LIN_URL=$(get_release_url "nicocha30/ligolo-ng" "agent.*linux_amd64.*tar.gz")
+    if [ -n "$AGENT_LIN_URL" ]; then
+        if run_install "Ligolo-ng agent (Linux)" wget -q "$AGENT_LIN_URL" -O /tmp/ligolo-agent-lin.tar.gz; then
+            tar xzf /tmp/ligolo-agent-lin.tar.gz -C "$TOOLS_DIR/ligolo/"
+            find "$TOOLS_DIR/ligolo/" -name "*agent*" -type f ! -name "*.exe" ! -name "agent" ! -name "proxy" \
+                -exec mv {} "$TOOLS_DIR/ligolo/agent" \; 2>/dev/null
+            chmod +x "$TOOLS_DIR/ligolo/agent"
+        fi
+        rm -f /tmp/ligolo-agent-lin.tar.gz
+    else
+        echo -e "  ${RED}[✗]${NC} Ligolo-ng agent (Linux): release not found"
+        _log "[✗] Ligolo-ng agent (Linux): release URL not found"
         track_failed
     fi
 else

@@ -97,7 +97,7 @@ precheck() {
 
     # Build tools
     command -v cargo &>/dev/null && found+=("Rust") || missing+=("Rust")
-    [ -f "$t/ad/RustHound-CE/target/release/rusthound-ce" ] && found+=("RustHound-CE") || missing+=("RustHound-CE")
+    command -v rusthound-ce &>/dev/null && found+=("RustHound-CE") || missing+=("RustHound-CE")
 
     # C2
     command -v sliver &>/dev/null && found+=("Sliver C2") || missing+=("Sliver C2")
