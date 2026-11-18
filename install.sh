@@ -14,7 +14,7 @@ for arg in "$@"; do
         --verbose|-v) VERBOSE=true ;;
         --help|-h)
             echo "Usage: ./install.sh [--verbose|-v]"
-            echo "  --verbose   Show detailed output from each module"
+            echo "  --verbose   Show full command output alongside tool status"
             exit 0
             ;;
     esac
@@ -39,47 +39,13 @@ banner() {
     echo "  ╚═╝  ╚═══╝╚══════╝╚═╝   ╚═╝ ╚═════╝ ╚══════╝"
     echo -e "${NC}"
     echo -e "  ${BOLD}Kali Linux Pentesting Toolkit Bootstrap${NC}"
-    if [ "$VERBOSE" = true ]; then
-        echo -e "  ${DIM}Verbose mode — showing all output${NC}"
-    else
-        echo -e "  ${DIM}Use --verbose for detailed output${NC}"
+    if [ "$VERBOSE" != true ]; then
+        echo -e "  ${DIM}Use --verbose for full command output${NC}"
     fi
     echo ""
 }
 
-# ---- Spinner (quiet mode only) ----
-_spinner_pid=""
-
-start_spinner() {
-    [ "$VERBOSE" = true ] && return
-    local msg="$1"
-    (
-        local chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-        while true; do
-            for (( i=0; i<${#chars}; i++ )); do
-                printf "\r  ${CYAN}%s${NC} %s " "${chars:$i:1}" "$msg"
-                sleep 0.08
-            done
-        done
-    ) &
-    _spinner_pid=$!
-    tput civis 2>/dev/null
-}
-
-stop_spinner() {
-    if [ -n "$_spinner_pid" ]; then
-        kill "$_spinner_pid" 2>/dev/null
-        wait "$_spinner_pid" 2>/dev/null
-        _spinner_pid=""
-        printf "\r\033[K"
-        tput cnorm 2>/dev/null
-    fi
-}
-
-cleanup() {
-    stop_spinner
-    tput cnorm 2>/dev/null
-}
+cleanup() { tput cnorm 2>/dev/null; }
 trap cleanup EXIT INT TERM
 
 # ---- Module runner ----
@@ -96,18 +62,15 @@ run_module() {
     local stats_file
     stats_file=$(mktemp /tmp/nexus-stats-XXXXXX)
 
-    local exit_code=0
+    echo -e "\n  ${CYAN}[${num}/${TOTAL_MODULES}]${NC} ${BOLD}${name}${NC}"
+    echo -e "  ${DIM}$(printf '─%.0s' {1..40})${NC}"
 
-    if [ "$VERBOSE" = true ]; then
-        echo -e "\n  ${CYAN}━━━ [${num}/${TOTAL_MODULES}] ${name} ━━━${NC}\n"
-        NEXUS_STATS_FILE="$stats_file" bash "$script" 2>&1 | tee -a "$LOG_FILE" || true
-        exit_code=${PIPESTATUS[0]}
-    else
-        start_spinner "[${num}/${TOTAL_MODULES}] ${name}"
-        NEXUS_STATS_FILE="$stats_file" bash "$script" >> "$LOG_FILE" 2>&1 || true
-        exit_code=$?
-        stop_spinner
-    fi
+    local exit_code=0
+    NEXUS_STATS_FILE="$stats_file" \
+    NEXUS_VERBOSE="$VERBOSE" \
+    NEXUS_LOG_FILE="$LOG_FILE" \
+    GIT_TERMINAL_PROMPT=0 \
+        bash "$script" || exit_code=$?
 
     local mod_installed mod_skipped mod_failed
     mod_installed=$(grep -c "^installed$" "$stats_file" 2>/dev/null) || mod_installed=0
@@ -118,21 +81,6 @@ run_module() {
     TOTAL_INSTALLED=$((TOTAL_INSTALLED + mod_installed))
     TOTAL_SKIPPED=$((TOTAL_SKIPPED + mod_skipped))
     TOTAL_FAILED=$((TOTAL_FAILED + mod_failed))
-
-    # Build status suffix
-    local suffix=""
-    [ "$mod_installed" -gt 0 ] && suffix="${mod_installed} installed"
-    [ "$mod_skipped" -gt 0 ] && suffix="${suffix:+$suffix, }${mod_skipped} skipped"
-    [ "$mod_failed" -gt 0 ] && suffix="${suffix:+$suffix, }${mod_failed} failed"
-    [ -n "$suffix" ] && suffix=" ${DIM}(${suffix})${NC}"
-
-    if [ "$mod_failed" -gt 0 ]; then
-        echo -e "  ${YELLOW}!${NC} [${num}/${TOTAL_MODULES}] ${name}${suffix}"
-    elif [ "$exit_code" -ne 0 ]; then
-        echo -e "  ${RED}✗${NC} [${num}/${TOTAL_MODULES}] ${name}${suffix}"
-    else
-        echo -e "  ${GREEN}✓${NC} [${num}/${TOTAL_MODULES}] ${name}${suffix}"
-    fi
 }
 
 # ---- Main ----
@@ -144,6 +92,10 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 echo "=== Nexus install started: $(date) ===" > "$LOG_FILE"
+
+# Cache sudo credentials and keep them fresh for the full run
+sudo -v
+(while kill -0 $$ 2>/dev/null; do sudo -n true; sleep 50; done) 2>/dev/null &
 
 # Directory structure
 mkdir -p "$HOME/htb"/{scripts,vpn}

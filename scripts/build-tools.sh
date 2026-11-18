@@ -7,55 +7,32 @@ TOOLS_DIR="$HOME/htb/tools"
 
 # ---- Install Rust if missing ----
 if ! command -v cargo &>/dev/null; then
-    if [ -f "$HOME/.cargo/env" ]; then
-        source "$HOME/.cargo/env"
-    fi
+    [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 fi
 
 if ! command -v cargo &>/dev/null; then
-    info "Installing Rust toolchain..."
-    if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; then
-        source "$HOME/.cargo/env"
-        track_installed
-    else
-        warn "Failed to install Rust"
-        track_failed
-    fi
+    run_install "Rust toolchain" bash -c \
+        'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
+    source "$HOME/.cargo/env" 2>/dev/null
 else
-    info "Rust: already installed"
-    track_skipped
+    skip_ok "Rust toolchain"
 fi
 
 # ---- RustHound-CE ----
 if [ ! -d "$TOOLS_DIR/ad/RustHound-CE" ]; then
-    info "Cloning and building RustHound-CE (this takes a while)..."
-    if git clone --quiet https://github.com/NH-RED-TEAM/RustHound-CE.git "$TOOLS_DIR/ad/RustHound-CE"; then
+    info "Cloning RustHound-CE..."
+    if run_cmd git clone --quiet https://github.com/NH-RED-TEAM/RustHound-CE.git "$TOOLS_DIR/ad/RustHound-CE"; then
         cd "$TOOLS_DIR/ad/RustHound-CE"
-        source "$HOME/.cargo/env"
-        if cargo build --release; then
-            info "RustHound-CE built"
-            track_installed
-        else
-            warn "RustHound-CE build failed"
-            track_failed
-        fi
+        source "$HOME/.cargo/env" 2>/dev/null
+        run_install "RustHound-CE (compiling — takes a while)" cargo build --release
     else
         warn "Failed to clone RustHound-CE"
         track_failed
     fi
 elif [ ! -f "$TOOLS_DIR/ad/RustHound-CE/target/release/rusthound-ce" ]; then
-    info "Building RustHound-CE (this takes a while)..."
     cd "$TOOLS_DIR/ad/RustHound-CE"
-    source "$HOME/.cargo/env"
-    if cargo build --release; then
-        track_installed
-    else
-        warn "RustHound-CE build failed"
-        track_failed
-    fi
+    source "$HOME/.cargo/env" 2>/dev/null
+    run_install "RustHound-CE (compiling — takes a while)" cargo build --release
 else
-    info "RustHound-CE: already built"
-    track_skipped
+    skip_ok "RustHound-CE"
 fi
-
-info "Build tools done."

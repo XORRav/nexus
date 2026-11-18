@@ -14,46 +14,27 @@ APT_PACKAGES=(
 )
 
 info "Updating apt cache..."
-sudo apt update -qq
+run_cmd sudo apt update -qq
 
 for pkg in "${APT_PACKAGES[@]}"; do
     if dpkg -s "$pkg" &>/dev/null; then
-        info "$pkg: already installed"
-        track_skipped
+        skip_ok "$pkg"
     else
-        info "Installing $pkg..."
-        if sudo apt install -y -qq "$pkg"; then
-            track_installed
-        else
-            warn "Failed to install $pkg"
-            track_failed
-        fi
+        run_install "$pkg" sudo apt install -y -qq "$pkg"
     fi
 done
 
 # Decompress rockyou.txt if still gzipped
 if [ -f /usr/share/wordlists/rockyou.txt.gz ]; then
-    info "Decompressing rockyou.txt..."
-    sudo gzip -d /usr/share/wordlists/rockyou.txt.gz
-    track_installed
+    run_install "rockyou.txt (decompress)" sudo gzip -d /usr/share/wordlists/rockyou.txt.gz
 else
-    info "rockyou.txt: already decompressed"
-    track_skipped
+    skip_ok "rockyou.txt"
 fi
 
 # Download OneRuleToRuleThemAll if missing
 if [ ! -f /usr/share/hashcat/rules/OneRuleToRuleThemAll.rule ]; then
-    info "Downloading OneRuleToRuleThemAll hashcat rule..."
-    if sudo wget -q -P /usr/share/hashcat/rules/ \
-        https://raw.githubusercontent.com/NotSoSecure/password_cracking_rules/master/OneRuleToRuleThemAll.rule; then
-        track_installed
-    else
-        warn "Failed to download OneRuleToRuleThemAll.rule"
-        track_failed
-    fi
+    run_install "OneRuleToRuleThemAll.rule" sudo wget -q -P /usr/share/hashcat/rules/ \
+        https://raw.githubusercontent.com/NotSoSecure/password_cracking_rules/master/OneRuleToRuleThemAll.rule
 else
-    info "OneRuleToRuleThemAll.rule: already present"
-    track_skipped
+    skip_ok "OneRuleToRuleThemAll.rule"
 fi
-
-info "APT tools done."
