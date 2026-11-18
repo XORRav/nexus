@@ -1,8 +1,6 @@
 #!/bin/bash
 # APT package installs
 
-source "$(dirname "${BASH_SOURCE[0]}")/../install.sh" 2>/dev/null || true
-
 info() { echo -e "\033[0;32m[+]\033[0m $1"; }
 warn() { echo -e "\033[1;33m[!]\033[0m $1"; }
 
@@ -23,7 +21,7 @@ info "Updating apt cache..."
 sudo apt update -qq
 
 for pkg in "${APT_PACKAGES[@]}"; do
-    if dpkg -l "$pkg" &>/dev/null; then
+    if dpkg -s "$pkg" &>/dev/null; then
         info "$pkg: already installed"
     else
         info "Installing $pkg..."
