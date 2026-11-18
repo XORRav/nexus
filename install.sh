@@ -48,6 +48,91 @@ banner() {
 cleanup() { tput cnorm 2>/dev/null; }
 trap cleanup EXIT INT TERM
 
+# ---- Pre-flight scan ----
+precheck() {
+    local found=()
+    local missing=()
+    local t="$TOOLS_DIR"
+
+    # APT packages
+    for pkg in rlwrap jq fzf bat ripgrep seclists gvm; do
+        dpkg -s "$pkg" &>/dev/null && found+=("$pkg") || missing+=("$pkg")
+    done
+
+    # Wordlists / rules
+    [ -f /usr/share/wordlists/rockyou.txt ] && found+=("rockyou.txt") || missing+=("rockyou.txt")
+    [ -f /usr/share/hashcat/rules/OneRuleToRuleThemAll.rule ] && found+=("OneRuleToRuleThemAll") || missing+=("OneRuleToRuleThemAll")
+
+    # Terminal
+    [ "$(basename "$SHELL")" = "zsh" ] && found+=("zsh") || missing+=("zsh")
+    fc-list 2>/dev/null | grep -qi "JetBrainsMono Nerd" && found+=("Nerd Font") || missing+=("Nerd Font")
+    command -v xsel &>/dev/null && found+=("xsel") || missing+=("xsel")
+    [ -f "$HOME/.tmux.conf" ] && found+=("tmux config") || missing+=("tmux config")
+
+    # pipx packages (one pipx list call, check against it)
+    local pipx_out=""
+    command -v pipx &>/dev/null && pipx_out=$(pipx list 2>/dev/null)
+    for pkg in certipy-ad bloodyad adidnsdump ldapdomaindump coercer pypykatz wesng droopescan; do
+        echo "$pipx_out" | grep -qi "$pkg" && found+=("$pkg") || missing+=("$pkg")
+    done
+
+    # GitHub tools
+    [ -f "$t/ad/bloodhound-ce/docker-compose.yml" ] && found+=("BloodHound CE") || missing+=("BloodHound CE")
+    [ -f "$t/ad/kerbrute" ] && found+=("Kerbrute") || missing+=("Kerbrute")
+    [ -f "$t/ad/windapsearch" ] && found+=("windapsearch") || missing+=("windapsearch")
+    [ -d "$t/ad/PKINITtools" ] && found+=("PKINITtools") || missing+=("PKINITtools")
+    [ -d "$t/ad/krbrelayx" ] && found+=("krbrelayx") || missing+=("krbrelayx")
+    ls "$t/ad"/SharpHound*.zip &>/dev/null && found+=("SharpHound") || missing+=("SharpHound")
+    [ -f "$t/ad/Rubeus.exe" ] && found+=("Rubeus") || missing+=("Rubeus")
+    [ -f "$t/ad/Seatbelt.exe" ] && found+=("Seatbelt") || missing+=("Seatbelt")
+    [ -f "$t/ad/Certify.exe" ] && found+=("Certify") || missing+=("Certify")
+    [ -f "$t/ad/Snaffler.exe" ] && found+=("Snaffler") || missing+=("Snaffler")
+    ls "$t/ad"/Inveigh*.zip &>/dev/null && found+=("Inveigh") || missing+=("Inveigh")
+    [ -d "$t/exploit/noPac" ] && found+=("noPac") || missing+=("noPac")
+    [ -d "$t/exploit/PrintNightmare" ] && found+=("PrintNightmare") || missing+=("PrintNightmare")
+    [ -f "$t/postex/pspy64" ] && found+=("pspy64") || missing+=("pspy64")
+    [ -f "$t/ligolo/proxy" ] && found+=("Ligolo-ng") || missing+=("Ligolo-ng")
+    [ -d "$t/web/username-anarchy" ] && found+=("Username Anarchy") || missing+=("Username Anarchy")
+    [ -d "$t/web/cupp" ] && found+=("cupp") || missing+=("cupp")
+
+    # Build tools
+    command -v cargo &>/dev/null && found+=("Rust") || missing+=("Rust")
+    [ -f "$t/ad/RustHound-CE/target/release/rusthound-ce" ] && found+=("RustHound-CE") || missing+=("RustHound-CE")
+
+    # C2
+    command -v sliver &>/dev/null && found+=("Sliver C2") || missing+=("Sliver C2")
+    groups "$USER" 2>/dev/null | grep -q docker && found+=("docker group") || missing+=("docker group")
+
+    # Print summary
+    local total=$(( ${#found[@]} + ${#missing[@]} ))
+
+    echo -e "  ${CYAN}Pre-flight scan${NC}"
+    echo -e "  ${DIM}$(printf '─%.0s' {1..40})${NC}"
+
+    if [ ${#missing[@]} -eq 0 ]; then
+        echo -e "  ${GREEN}${#found[@]}/${total}${NC} tools already installed — nothing new"
+        echo -e "  ${DIM}Running anyway to verify...${NC}"
+    elif [ ${#found[@]} -eq 0 ]; then
+        echo -e "  Fresh system — ${YELLOW}${#missing[@]} tools${NC} to install"
+    else
+        echo -e "  ${GREEN}${#found[@]}${NC}/${total} already installed · ${YELLOW}${#missing[@]}${NC} to install"
+    fi
+
+    if [ ${#found[@]} -gt 0 ] && [ ${#found[@]} -lt "$total" ]; then
+        local list
+        if [ ${#found[@]} -gt 8 ]; then
+            printf -v list '%s, ' "${found[@]:0:8}"
+            list="${list%, } ... and $((${#found[@]} - 8)) more"
+        else
+            printf -v list '%s, ' "${found[@]}"
+            list="${list%, }"
+        fi
+        echo -e "  ${DIM}Existing: ${list}${NC}"
+    fi
+
+    echo ""
+}
+
 # ---- Module runner ----
 TOTAL_MODULES=6
 TOTAL_INSTALLED=0
@@ -100,6 +185,9 @@ sudo -v
 # Directory structure
 mkdir -p "$HOME/htb"/{scripts,vpn}
 mkdir -p "$TOOLS_DIR"/{ad,exploit,postex,ligolo,pivot,web,wordlists}
+
+# Pre-flight check
+precheck
 
 # Run modules
 run_module 1 "APT packages"             "apt-tools.sh"
